@@ -7,8 +7,8 @@
     <h3>🔍 ZTA Security Context</h3>
     <p><strong>Access Time:</strong> {{ context.current_time }}</p>
     <p><strong>IP Address:</strong> {{ context.ip_address }}</p>
-    <p><strong>Business Hours:</strong> {{ " Within" if context.time_ok else " Outside" }} (9AM-5PM)</p>
-    <p><strong>Location:</strong> {{ " Local" if context.local_access else " Remote" }} Access</p>
+    <p><strong>Business Hours:</strong> {{ "✅ Within" if context.time_ok else "❌ Outside" }} (9AM-5PM)</p>
+    <p><strong>Location:</strong> {{ "✅ Local" if context.local_access else "❌ Remote" }} Access</p>
 </div>
 
 <p>You have successfully authenticated with our enhanced ZTA system.</p>

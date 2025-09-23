@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🔐 Administrator Dashboard</h1>
+<p>Welcome, <strong style="color: red;">{{ current_user.username }} (ADMIN)</strong></p>
+
+<div class="zta-context-info">
+    <h3>🔍 Security Context</h3>
+    <p><strong>Access Time:</strong> {{ context.current_time }}</p>
+    <p><strong>IP Address:</strong> {{ context.ip_address }}</p>
+</div>
+
+<h3>👥 User Management</h3>
+<table class="user-table">
+    <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Created</th>
+    </tr>
+    {% for user in users %}
+    <tr>
+        <td>{{ user[0] }}</td>
+        <td>{{ user[1] }}</td>
+        <td>{{ user[2] }}</td>
+        <td>
+            {% if user[3] == 'admin' %}
+            <span class="role-admin">{{ user[3]|upper }}</span>
+            {% else %}
+            <span class="role-user">{{ user[3]|upper }}</span>
+            {% endif %}
+        </td>
+        <td>{{ user[4][:16] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<div class="admin-actions">
+    <h3>🛠️ Admin Actions</h3>
+    <a href="{{ url_for('dashboard') }}" class="btn">Back to Main Dashboard</a>
+    <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+</div>
+
+<style>
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.user-table th, .user-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+.user-table th {
+    background-color: #f2f2f2;
+}
+.role-admin {
+    color: red;
+    font-weight: bold;
+}
+.role-user {
+    color: blue;
+    font-weight: normal;
+}
+.admin-actions {
+    margin-top: 30px;
+}
+</style>
+{% endblock %}
