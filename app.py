@@ -182,11 +182,30 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def get_browser_name(user_agent):
+    user_agent = user_agent.lower()
+    
+    if 'edg/' in user_agent or 'edge/' in user_agent:
+        return 'Microsoft Edge'
+    elif 'chrome/' in user_agent and 'edg/' not in user_agent:
+        return 'Google Chrome'
+    elif 'firefox/' in user_agent or 'fxios/' in user_agent:
+        return 'Mozilla Firefox'
+    elif 'safari/' in user_agent and 'chrome/' not in user_agent:
+        return 'Safari'
+    elif 'opera/' in user_agent or 'opr/' in user_agent:
+        return 'Opera'
+    elif 'trident/' in user_agent or 'msie' in user_agent:
+        return 'Internet Explorer'
+    else:
+        return 'Unknown Browser'
+    
 @app.route('/dashboard')
 @login_required
 def dashboard():
     context = perform_context_checks(request)
-    print(f" DASHBOARD ACCESS: {current_user.username} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} from {context['ip_address']} ({context['user_agent'][:50]})")
+    browser_name = get_browser_name(context['user_agent'])
+    print(f" DASHBOARD: {current_user.username} | {datetime.now().strftime('%H:%M:%S')} | {context['ip_address']} | {browser_name}")
     if current_user.is_admin():
         return render_template('dashboard_admin.html', context=context)
     else:
@@ -197,7 +216,8 @@ def dashboard():
 @admin_required
 def admin_dashboard():
     context = perform_context_checks(request)
-    print(f" ADMIN DASHBOARD ACCESS: {current_user.username} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} from {context['ip_address']}")
+    browser_name = get_browser_name(context['user_agent'])
+    print(f"ADMIN DASHBOARD: {current_user.username} | {datetime.now().strftime('%H:%M:%S')} | {context['ip_address']} | {browser_name}")
     conn = sqlite3.connect('zta_users.db')
     c = conn.cursor()
     c.execute("SELECT id, username, email, role, created_at FROM users")
