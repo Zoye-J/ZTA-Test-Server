@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from datetime import datetime, timezone 
 import sqlite3
 import random
@@ -24,7 +25,9 @@ def init_db():
         password_hash = generate_password_hash('admin123')
         c.execute("INSERT INTO users (username, email, password_hash, mfa_secret, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                  ('admin', 'admin@zta.system', password_hash, mfa_secret, 'admin', datetime.now(timezone.utc)))
-    
+        print(f" Default admin created!")
+        print(f" ADMIN MFA CODE: {mfa_secret}")
+        print(f" Password: admin123")
     conn.commit()
     conn.close()
 
@@ -38,7 +41,9 @@ class User(UserMixin):
     def __init__(self, id, username, role='user'): 
         self.id = id
         self.username = username
-        self.role = role 
+        self.role = role if role is not None else 'user' 
+    def is_admin(self): 
+        return self.role == 'admin'
 
 # Improved MFA system
 class MFASystem:
@@ -72,14 +77,22 @@ def perform_context_checks(request):
 
 @login_manager.user_loader
 def load_user(user_id):
+    print(f"🔍 LOAD_USER CALLED for user_id: {user_id}")
+    
     conn = sqlite3.connect('zta_users.db')
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     user_data = c.fetchone()
     conn.close()
+    
     if user_data:
-        return User(user_data[0], user_data[1])
-    return None
+        print(f" Database returned: ID={user_data[0]}, Username={user_data[1]}, Role={user_data[5]}")
+        user = User(user_data[0], user_data[1], user_data[5])
+        print(f" Created User object: {user.username} with role: {user.role}")
+        return user
+    else:
+        print(" No user found in database")
+        return None
 
 @app.route('/')
 def index():
@@ -124,12 +137,10 @@ def register():
 def login():
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password']  # This is plain text from form
+        password = request.form['password']
         mfa_code = request.form.get('mfa_code', '')
         
-        # Enhanced context awareness
-        context = perform_context_checks(request)
-        print(f"ZTA Context-Aware Login: {username} from {context['ip_address']}")
+        print(f" LOGIN ATTEMPT: {username}")
         
         conn = sqlite3.connect('zta_users.db')
         c = conn.cursor()
@@ -137,16 +148,15 @@ def login():
         user_data = c.fetchone()
         conn.close()
         
-        # FIX: Use password hashing verification
-        if user_data and check_password_hash(user_data[3], password):  # This line is critical!
+        if user_data:
+            print(f" USER DATA: ID={user_data[0]}, Role={user_data[5]}")
+        
+        if user_data and check_password_hash(user_data[3], password):
             if mfa_code == user_data[4]:
-                # Check context policies
-                if not context['time_ok']:
-                    flash(' Security Alert: Login outside business hours!')
-                if not context['local_access']:
-                    flash(' Security Alert: Remote access detected!')
-                
                 user = User(user_data[0], user_data[1], user_data[5])
+                print(f" LOGIN SUCCESS: Creating User({user_data[0]}, {user_data[1]}, {user_data[5]})")
+                print(f" FINAL USER OBJECT: username={user.username}, role={user.role}")
+                
                 login_user(user)
                 flash(f' Login successful! Role: {user.role}')
                 return redirect(url_for('dashboard'))
@@ -154,7 +164,6 @@ def login():
                 flash(' Invalid MFA code!')
         else:
             flash(' Invalid credentials!')
-            print(f"DEBUG: Login failed for {username}")  # Debug line
     
     return render_template('login.html')
 
@@ -213,16 +222,13 @@ def logout():
     flash(' Session terminated securely')
     return redirect(url_for('index'))
 
-@app.route('/debug-routes')
-def debug_routes():
-    routes = []
-    for rule in app.url_map.iter_rules():
-        routes.append({
-            'endpoint': rule.endpoint,
-            'methods': list(rule.methods),
-            'path': str(rule)
-        })
-    return jsonify(routes)
+@app.route('/clear-session')
+def clear_session():
+    logout_user()
+    # Clear all session data
+    session.clear()
+    flash(' Session completely cleared. Please login fresh.')
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
