@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="background: linear-gradient(45deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+<div style="background: white; color: white; padding: 20px; border-radius: 10px; text-align: center;">
     <h1>Welcome, {{ current_user.username }}! (USER)</h1>
+    <a href="{{ url_for('api_data') }}" class="btn">Request API</a>
+    <a href="{{ url_for('logout') }}" class="btn">Logout</a>
 </div>
-<div class="zta-context-info">
-    <h3>🔍 ZTA Security Context</h3>
-    <p><strong>Access Time:</strong> {{ context.current_time }}</p>
-    <p><strong>IP Address:</strong> {{ context.ip_address }}</p>
-</div>
+
+
 
 {% endblock %}

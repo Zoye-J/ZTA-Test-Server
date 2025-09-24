@@ -24,21 +24,19 @@ def init_db():
     
     if existing_admin:
         print(f" Admin user exists: {existing_admin[0]} with role: {existing_admin[1]}")
-        print(f" Admin MFA Code: {existing_admin[2]}")
-        # If role is wrong, fix it
+        print(f" Admin MFA Code: {existing_admin[2]}")  
+    
         if existing_admin[1] != 'admin':
             c.execute("UPDATE users SET role = 'admin' WHERE username = 'admin'")
-            print(" Fixed admin user role")
+            
     else:
-        print(" Creating default admin user")
+        print(" Creating default admin user...")
         mfa_secret = str(random.randint(100000, 999999))
         password_hash = generate_password_hash('admin123')
         c.execute("INSERT INTO users (username, email, password_hash, mfa_secret, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                  ('admin', 'admin@zta.system', password_hash, mfa_secret, 'admin', datetime.now(timezone.utc)))
-        print(f" Default admin created!")
-        print(f" ADMIN MFA CODE: {mfa_secret}")
-        print(f" Password: admin123")
     
+
     conn.commit()
     conn.close()
 
@@ -88,8 +86,6 @@ def perform_context_checks(request):
 
 @login_manager.user_loader
 def load_user(user_id):
-    print(f"🔍 LOAD_USER CALLED for user_id: {user_id}")
-    
     conn = sqlite3.connect('zta_users.db')
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -97,9 +93,7 @@ def load_user(user_id):
     conn.close()
     
     if user_data:
-        print(f" Database returned: ID={user_data[0]}, Username={user_data[1]}, Role={user_data[5]}")
         user = User(user_data[0], user_data[1], user_data[5])
-        print(f" Created User object: {user.username} with role: {user.role}")
         return user
     else:
         print(" No user found in database")
@@ -115,9 +109,9 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        role = request.form.get('role', 'user')  # Get role from form, default to 'user'
+        role = request.form.get('role', 'user') 
         
-        print(f"DEBUG: Registration form data - username: {username}, role: {role}")  # Debug line
+        print(f"DEBUG: Registration form data - username: {username}, role: {role}")  
         
         # Context check during registration
         context = perform_context_checks(request)
@@ -150,8 +144,9 @@ def login():
         username = request.form['username']
         password = request.form['password']
         mfa_code = request.form.get('mfa_code', '')
-        
-        print(f" LOGIN ATTEMPT: {username}")
+        context = perform_context_checks(request)
+        print(f" LOGIN ATTEMPT: {username} from {context['ip_address']} at {datetime.now().strftime('%H:%M:%S')}")
+   
         
         conn = sqlite3.connect('zta_users.db')
         c = conn.cursor()
@@ -165,8 +160,6 @@ def login():
         if user_data and check_password_hash(user_data[3], password):
             if mfa_code == user_data[4]:
                 user = User(user_data[0], user_data[1], user_data[5])
-                print(f" LOGIN SUCCESS: Creating User({user_data[0]}, {user_data[1]}, {user_data[5]})")
-                print(f" FINAL USER OBJECT: username={user.username}, role={user.role}")
                 
                 login_user(user)
                 flash(f' Login successful! Role: {user.role}')
@@ -193,6 +186,7 @@ def admin_required(f):
 @login_required
 def dashboard():
     context = perform_context_checks(request)
+    print(f" DASHBOARD ACCESS: {current_user.username} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} from {context['ip_address']} ({context['user_agent'][:50]})")
     if current_user.is_admin():
         return render_template('dashboard_admin.html', context=context)
     else:
@@ -202,13 +196,14 @@ def dashboard():
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
+    context = perform_context_checks(request)
+    print(f" ADMIN DASHBOARD ACCESS: {current_user.username} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} from {context['ip_address']}")
     conn = sqlite3.connect('zta_users.db')
     c = conn.cursor()
     c.execute("SELECT id, username, email, role, created_at FROM users")
     all_users = c.fetchall()
     conn.close()
     
-    context = perform_context_checks(request)
     return render_template('admin_dashboard.html', users=all_users, context=context)
 
 
@@ -216,6 +211,7 @@ def admin_dashboard():
 @login_required
 def api_data():
     context = perform_context_checks(request)
+    print(f" API ACCESS: {current_user.username} at {datetime.now().strftime('%H:%M:%S')} from {context['ip_address']}")
     
     # Enhanced context-aware policies
     if not context['time_ok']:
@@ -225,9 +221,6 @@ def api_data():
     
     return jsonify({
         'message': 'Protected data access granted!',
-        'user': current_user.username,
-        'access_context': context,
-        'zta_policies_passed': True
     })
 
 @app.route('/logout')

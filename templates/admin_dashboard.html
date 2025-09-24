@@ -1,16 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>🔐 Administrator Dashboard</h1>
-<p>Welcome, <strong style="color: red;">{{ current_user.username }} (ADMIN)</strong></p>
+<h1> Administrator Dashboard</h1>
 
-<div class="zta-context-info">
-    <h3>🔍 Security Context</h3>
-    <p><strong>Access Time:</strong> {{ context.current_time }}</p>
-    <p><strong>IP Address:</strong> {{ context.ip_address }}</p>
-</div>
 
-<h3>👥 User Management</h3>
+<h3> User Management</h3>
 <table class="user-table">
     <tr>
         <th>ID</th>
@@ -37,9 +31,7 @@
 </table>
 
 <div class="admin-actions">
-    <h3>🛠️ Admin Actions</h3>
     <a href="{{ url_for('dashboard') }}" class="btn">Back to Main Dashboard</a>
-    <a href="{{ url_for('logout') }}" class="btn">Logout</a>
 </div>
 
 <style>
@@ -57,7 +49,7 @@
     background-color: #f2f2f2;
 }
 .role-admin {
-    color: red;
+    color: rgb(84, 235, 92);
     font-weight: bold;
 }
 .role-user {
