@@ -18,9 +18,19 @@ def init_db():
                  (id INTEGER PRIMARY KEY, username TEXT UNIQUE, email TEXT, 
                   password_hash TEXT, mfa_secret TEXT, role TEXT, created_at TIMESTAMP)''')
     
-    # Add default admin user
-    c.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
-    if c.fetchone()[0] == 0:
+    # Add default admin user with better checking
+    c.execute("SELECT username, role, mfa_secret FROM users WHERE username = 'admin'")
+    existing_admin = c.fetchone()
+    
+    if existing_admin:
+        print(f" Admin user exists: {existing_admin[0]} with role: {existing_admin[1]}")
+        print(f" Admin MFA Code: {existing_admin[2]}")
+        # If role is wrong, fix it
+        if existing_admin[1] != 'admin':
+            c.execute("UPDATE users SET role = 'admin' WHERE username = 'admin'")
+            print(" Fixed admin user role")
+    else:
+        print(" Creating default admin user")
         mfa_secret = str(random.randint(100000, 999999))
         password_hash = generate_password_hash('admin123')
         c.execute("INSERT INTO users (username, email, password_hash, mfa_secret, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -28,6 +38,7 @@ def init_db():
         print(f" Default admin created!")
         print(f" ADMIN MFA CODE: {mfa_secret}")
         print(f" Password: admin123")
+    
     conn.commit()
     conn.close()
 
@@ -178,7 +189,16 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Admin dashboard route
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    context = perform_context_checks(request)
+    if current_user.is_admin():
+        return render_template('dashboard_admin.html', context=context)
+    else:
+        return render_template('dashboard_user.html', context=context)
+
+# ADMIN DASHBOARD MUST BE DEFINED BEFORE IT'S REFERENCED
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
@@ -191,12 +211,6 @@ def admin_dashboard():
     context = perform_context_checks(request)
     return render_template('admin_dashboard.html', users=all_users, context=context)
 
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    context = perform_context_checks(request)  # FIXED: Get context and pass to template
-    return render_template('dashboard.html', context=context)
 
 @app.route('/api/data')
 @login_required
