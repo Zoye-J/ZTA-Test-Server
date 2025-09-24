@@ -18,7 +18,6 @@ def init_db():
                  (id INTEGER PRIMARY KEY, username TEXT UNIQUE, email TEXT, 
                   password_hash TEXT, mfa_secret TEXT, role TEXT, created_at TIMESTAMP)''')
     
-    # Add default admin user with better checking
     c.execute("SELECT username, role, mfa_secret FROM users WHERE username = 'admin'")
     existing_admin = c.fetchone()
     
@@ -66,13 +65,13 @@ class MFASystem:
 
 mfa_system = MFASystem()
 
-# Context-aware security checks
+# Context-aware
 def perform_context_checks(request):
     checks = {}
     
     # Time context
     current_hour = datetime.now().hour
-    checks['time_ok'] = (9 <= current_hour <= 20)
+    checks['time_ok'] = (9 <= current_hour <= 23)
     checks['current_time'] = datetime.now().strftime('%H:%M')
     
     # Device context
@@ -123,7 +122,7 @@ def register():
         try:
             # Generate MFA secret for new user
             mfa_secret = str(random.randint(100000, 999999))
-            password_hash = generate_password_hash(password)  # Hash the password!
+            password_hash = generate_password_hash(password) 
             
             c.execute("INSERT INTO users (username, email, password_hash, mfa_secret, role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                      (username, email, password_hash, mfa_secret, role, datetime.now()))
@@ -171,7 +170,7 @@ def login():
     
     return render_template('login.html')
 
-# Admin required decorator
+
 def admin_required(f):
     @wraps(f)
     @login_required
@@ -211,7 +210,7 @@ def dashboard():
     else:
         return render_template('dashboard_user.html', context=context)
 
-# ADMIN DASHBOARD MUST BE DEFINED BEFORE IT'S REFERENCED
+
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
@@ -231,9 +230,10 @@ def admin_dashboard():
 @login_required
 def api_data():
     context = perform_context_checks(request)
-    print(f" API ACCESS: {current_user.username} at {datetime.now().strftime('%H:%M:%S')} from {context['ip_address']}")
+    browser_name = get_browser_name(context['user_agent'])
+    print(f" API: {current_user.username} | {datetime.now().strftime('%H:%M:%S')} | {context['ip_address']} | {browser_name}")
     
-    # Enhanced context-aware policies
+    
     if not context['time_ok']:
         return jsonify({'error': 'ZTA Policy: Access outside business hours denied'}), 403
     if not context['local_access']:
@@ -252,7 +252,6 @@ def logout():
 @app.route('/clear-session')
 def clear_session():
     logout_user()
-    # Clear all session data
     session.clear()
     flash(' Session completely cleared. Please login fresh.')
     return redirect(url_for('login'))
